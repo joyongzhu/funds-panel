@@ -1,0 +1,104 @@
+use std::fs::File;
+use std::io::prelude::*;
+use std::{borrow::{Cow, Borrow}, fmt::format};
+
+use http_req::request;
+use serde::{Deserialize, Serialize};
+use serde_json::Result;
+
+fn main() {
+    println!("Hello, world!");
+
+    let mut stock = Stock::new(&String::from("000942"));
+    stock.refresh_stocks();
+}
+
+#[derive(Serialize, Deserialize)]
+struct FundInfo {
+    code: String,
+    pysx: String,
+    name: String,
+    fund_type: String,
+    py: String,
+}
+
+#[derive(Serialize, Deserialize)]
+struct ResponseAllFund {
+    code: u8,
+    message: String,
+    data: Vec<FundInfo>,
+}
+
+fn parse_all_fund_list() {
+    let mut file = File::open("a.txt").unwrap();
+    let mut contents = String::new();
+    file.read_to_string(&mut contents);
+    //println!("{}", contents.as_str());
+
+    let r: ResponseAllFund = serde_json::from_str(contents.as_str()).unwrap();
+    println!("{} {}", r.code, r.message);
+
+    let mut iter = r.data.iter();
+    loop {
+        match iter.next() {
+            None => {break}
+            Some(e) => {
+                println!("{} {} {} {}", e.code, e.pysx, e.name, e.fund_type);
+            }
+        }
+    }
+}
+
+pub fn request_fund_info_by_doctorxiong(code: &String) -> String {
+    let mut writer = Vec::new();
+    //let url = format!("http://fundgz.1234567.com.cn/js/{}.js", code);
+    let url = format!("https://api.doctorxiong.club/v1/fund/detail?code={}", code);
+    let ret = request::get(url, &mut writer);
+    if let Err(err) = ret {
+        println!("Error:{}", format!("{:?}", err));
+    }
+
+    let content = String::from_utf8_lossy(&writer);
+
+    content.to_string()
+}
+
+pub fn request_fund_list_by_doctorxiong() -> String {
+    let mut writer = Vec::new();
+    //let url = format!("http://fundgz.1234567.com.cn/js/{}.js", code);
+    let url = format!("https://api.doctorxiong.club/v1/fund/all");
+    let ret = request::get(url, &mut writer);
+    if let Err(err) = ret {
+        println!("Error:{}", format!("{:?}", err));
+    }
+
+    let content = String::from_utf8_lossy(&writer);
+
+    content.to_string()
+
+}
+
+#[derive(Debug, Clone)]
+pub struct Stock {
+    pub code: String,
+    pub title: String,
+    pub price: f64,
+}
+
+impl Stock {
+    pub fn new(code: &String) -> Self {
+        Self {
+            code: code.clone(),
+            title: code.clone(),
+            price: 0.0,
+        }
+    }
+
+    pub fn refresh_stocks(&mut self) {
+        //let content = request_fund_info_by_doctorxiong(&String::from("012348"));
+        //let content = request_fund_list_by_doctorxiong();
+        parse_all_fund_list();
+
+        //println!("content:{}", content);
+    }
+}
